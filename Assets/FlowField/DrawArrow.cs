@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 /// Utility class for drawing arrows
 /// https://forum.unity.com/threads/debug-drawarrow.85980/
