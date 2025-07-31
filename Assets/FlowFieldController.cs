@@ -44,7 +44,7 @@ public class FlowFieldController : MonoBehaviour
 
         ffp = new FlowFieldProvider(cellSize, b1, b2);
         ffp.SetObstracle(obstacleLayer, dynamicObstacles);
-        ffp.GenerateNewField(player.transform.position);
+        ffp.UpdateFlowField(player.transform.position);
     }
 
     void LateUpdate()
@@ -56,7 +56,7 @@ public class FlowFieldController : MonoBehaviour
         else
         {
             timer = refreshRate;
-            ffp?.GenerateNewField(player.transform.position);
+            ffp?.UpdateFlowField(player.transform.position);
         }
     }
 

@@ -37,21 +37,8 @@ public class DijkstraGrid
                (col >= 0) && (col < this.col);
     }
 
-    //utility function to check whether the given cell is blocked or not
-    bool IsUnBlocked(int[,] grid, int row, int col)
-    {
-        //returns true if the cell is not clocked else false
-        return grid[row, col] != int.MaxValue;
-    }
-
-    //Utility function to check whether destination cell has been reached or not
-    public bool IsDestination(int row, int col, Vector2Int dest)
-    {
-        return row == dest.c && col == dest.r;
-    }
-
     //generate djikstra grid on a given obstacle grid
-    public int[,] GenerateGrid(int col, int row, Vector2Int b1, Dictionary<Vector2Int, int> obstacleGrid, Vector2Int destination)
+    public int[,] GenerateGrid(Vector2Int b1, Dictionary<Vector2Int, int> obstacleGrid, Vector2Int destination)
     {
         int rOff = b1.r;
         int cOff = b1.c;
@@ -82,14 +69,16 @@ public class DijkstraGrid
         }
 
         //Destination is blocked
-        if (IsUnBlocked(dijkstraGridArr, dest.c, dest.r) == false)
+        var isUnBlocked = dijkstraGridArr[dest.c, dest.r] != int.MaxValue;
+        if (!isUnBlocked)
         {
             LogWrapper.Log("Dijkstra destination is blocked");
             LogWrapper.Log("Finding a new destination...");
 
             dest = FindNearestUnblocked(dijkstraGridArr, dest, col, row);
 
-            if (IsValid(dest.c, dest.r) && IsUnBlocked(dijkstraGridArr, dest.c, dest.r))
+            isUnBlocked = dijkstraGridArr[dest.c, dest.r] != int.MaxValue;
+            if (IsValid(dest.c, dest.r) && isUnBlocked)
             {
                 LogWrapper.Log("New destination found!");
             }
@@ -167,7 +156,8 @@ public class DijkstraGrid
                 {
 
                     //Check if destination is blocked
-                    if (IsUnBlocked(dijkstraGridArr, tempCell.row, tempCell.col))
+                    isUnBlocked = dijkstraGridArr[tempCell.row, tempCell.col] != int.MaxValue;
+                    if (isUnBlocked)
                     {
                         //grab the parent's indices
                         int parent_i = cellDetails[tempCell.row, tempCell.col].parent_i;

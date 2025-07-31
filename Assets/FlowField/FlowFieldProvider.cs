@@ -22,6 +22,8 @@ public class FlowFieldProvider
     private readonly ObstacleGrid og;
     private readonly FlowField ff;
 
+    private Vector3 lastDest;
+
 
     public FlowFieldProvider(float cellSize, Vector3 bounds1, Vector3 bounds2)
     {
@@ -48,13 +50,20 @@ public class FlowFieldProvider
         obstacles = og.GenerateBlockedDictionary(obstacleMask);
     }
 
-    public void GenerateNewField(Vector3 dest)
+    public void UpdateFlowField(Vector3 dest)
     {
         if (dynamicObstacles)
         {
             obstacles = og.GenerateBlockedDictionary(obstacleMask);
         }
-        GenerateFlowField(dest);
+
+        var update = lastDest != dest || dynamicObstacles;
+        lastDest = dest;
+
+        if (update)
+        {
+            GenerateFlowField(dest);
+        }
     }
 
     public Vector3 GetVector(Vector3 position)
@@ -87,7 +96,7 @@ public class FlowFieldProvider
         var cOff = b1.r;
 
         // 2. Flood fill grid to get cost values for each square
-        var dGrid = dg.GenerateGrid(col, row, b1, obstacles, cg.WorldToCell(destination, row));
+        var dGrid = dg.GenerateGrid(b1, obstacles, cg.WorldToCell(destination, row));
 
         // 3. Generate FlowField array from grid
         var flowFieldArray = ff.Generate(dGrid);
