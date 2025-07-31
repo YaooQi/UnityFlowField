@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 
 /// Script used to access the static FlowFieldProvider class
+[ExecuteAlways]
 public class FlowFieldController : MonoBehaviour
 {
 
@@ -12,7 +14,6 @@ public class FlowFieldController : MonoBehaviour
 
     public float cellSize;
 
-    // TODO: BUG, X AND Z ARE FLIPPED (HOW DID THIS HAPPEN???)
     public Vector3 b1;
     public Vector3 b2;
 
@@ -26,32 +27,24 @@ public class FlowFieldController : MonoBehaviour
     public bool showVectors;
 
     // Dictionary linking grid coordinates to passability values
-    Dictionary<Tuple<int, int>, int> obstacles;
+    // Dictionary<Vector2Int, int> obstacles;
 
     // Dictionary linking grid coordinates to Vector3s of FlowField
-    Dictionary<Tuple<int, int>, Vector3> ff;
-
-    // Utility used for transforming between world and grid coordinates
-    CustomGrid cg;
-
     [Header("Resource Allocation")]
     public float refreshRate;
     float timer;
 
-    // TODO: will be used for Async processing, not used at all right now
-    public int cellsPerFrame;
-    public int obstacleChecksPerFrame;
+    // changes  --------------
+    FlowFieldProvider ffp;
 
     // Start is called before the first frame update
     void Awake()
     {
         timer = refreshRate;
 
-        cg = new CustomGrid(cellSize);
-
-        //generate initial obstacle grid
-        obstacles = ObstacleGrid.GenerateBlockedDictionary(cg, b1, b2, obstacleLayer);
-        GenerateNewField(Vector3.zero, b1, b2);
+        ffp = new FlowFieldProvider(cellSize, b1, b2);
+        ffp.SetObstracle(obstacleLayer, dynamicObstacles);
+        ffp.GenerateNewField(player.transform.position);
     }
 
     void LateUpdate()
@@ -63,36 +56,30 @@ public class FlowFieldController : MonoBehaviour
         else
         {
             timer = refreshRate;
-            GenerateNewField(player.transform.position, b1, b2);
+            ffp?.GenerateNewField(player.transform.position);
         }
-    }
-
-    // Generate a new FlowField from destination and bounds
-    void GenerateNewField(Vector3 destination, Vector3 bound1, Vector3 bound2)
-    {
-        if (dynamicObstacles)
-        {
-            obstacles = ObstacleGrid.GenerateBlockedDictionary(cg, bound1, bound2, obstacleLayer);
-        }
-        FlowFieldProvider.GenerateNewField(cg, obstacles, bound1, bound2, destination, cellsPerFrame);
-        ff = FlowFieldProvider.GetField();
     }
 
     void OnDrawGizmos()
     {
+        ffp ??= new FlowFieldProvider(cellSize, b1, b2);
+        ffp.SetObstracle(obstacleLayer, dynamicObstacles);
+
+        var cg = ffp.GetGrid();
         // show blocked squares
         if (showObstacles)
         {
             Gizmos.color = new Color(1, 0.5f, 0.5f, 0.5f);
-            foreach (KeyValuePair<Tuple<int, int>, int> pair in obstacles)
+
+            var obstacles = ffp.GetObstacles();
+            foreach (KeyValuePair<Vector2Int, int> pair in obstacles)
             {
-                if (pair.Value == Int32.MaxValue)
+                if (pair.Value == int.MaxValue)
                 {
-                    Gizmos.DrawCube(cg.tupleToWorld(pair.Key) + (Vector3.forward * cellSize / 2) + (Vector3.right * cellSize / 2), new Vector3(cellSize, cellSize, cellSize));
+                    Gizmos.DrawCube(cg.TupleToWorld(pair.Key) + (Vector3.forward * cellSize / 2) + (Vector3.right * cellSize / 2), new Vector3(cellSize, cellSize, cellSize));
                 }
             }
         }
-
 
         // TODO: SAVE DIJKSTRA GRID IN A STATIC CLASS TO ACCESS FOR DEBUG DRAWING
         // show dijkstra values
@@ -108,10 +95,11 @@ public class FlowFieldController : MonoBehaviour
         // show vectors
         if (showVectors)
         {
+            var ff = ffp.GetFlowField();
             Gizmos.color = new Color(1, 1.0f, 1.0f, 1.0f);
-            foreach (KeyValuePair<Tuple<int, int>, Vector3> pair in ff)
+            foreach (KeyValuePair<Vector2Int, Vector3> pair in ff)
             {
-                DrawArrow.ForDebug(cg.tupleToWorld(pair.Key) + (Vector3.forward * cellSize / 2) + (Vector3.right * cellSize / 2), pair.Value);
+                DrawArrow.ForDebug(cg.TupleToWorld(pair.Key) + (Vector3.forward * cellSize / 2) + (Vector3.right * cellSize / 2), pair.Value);
             }
         }
     }

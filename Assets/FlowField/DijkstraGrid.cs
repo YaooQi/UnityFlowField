@@ -1,16 +1,26 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 /// Class for generating Dijkstra Grids
 public class DijkstraGrid
 {
-
     //Row and Column depend on grid size
-    public static int COL;
-    public static int ROW;
+    public int col;
+    public int row;
+    private Cell[,] cellDetails;
+    private readonly Queue<Cell> toVisit;
+    private readonly int[,] dijkstraGridArr;
 
-    struct cell
+    public DijkstraGrid(int col, int row)
+    {
+        this.col = col;
+        this.row = row;
+        cellDetails = new Cell[this.row, this.col];
+        toVisit = new Queue<Cell>(col * row);
+        dijkstraGridArr = new int[row, col];
+    }
+
+    struct Cell
     {
         //Row and Column index of its parent
         //Note that 0 <= i <= ROW - 1 & 0 <= j <= COL - 1
@@ -20,88 +30,72 @@ public class DijkstraGrid
     }
 
     //Utility function to check whether a given cell is valid or not
-    static bool isValid(int row, int col)
+    bool IsValid(int row, int col)
     {
         //returns true if row# and col# is within range
-        return (row >= 0) && (row < ROW) &&
-               (col >= 0) && (col < COL);
+        return (row >= 0) && (row < this.row) &&
+               (col >= 0) && (col < this.col);
     }
 
     //utility function to check whether the given cell is blocked or not
-    static bool isUnBlocked(int[,] grid, int row, int col)
+    bool IsUnBlocked(int[,] grid, int row, int col)
     {
         //returns true if the cell is not clocked else false
-        if (grid[row, col] == Int32.MaxValue)
-        {
-            return (false);
-        }
-        else
-        {
-            return (true);
-        }
+        return grid[row, col] != int.MaxValue;
     }
 
     //Utility function to check whether destination cell has been reached or not
-    static bool isDestination(int row, int col, Tuple<int, int> dest)
+    public bool IsDestination(int row, int col, Vector2Int dest)
     {
-        if (row == dest.Item1 && col == dest.Item2)
-        {
-            return (true);
-        }
-        else
-        {
-            return (false);
-        }
+        return row == dest.c && col == dest.r;
     }
 
     //generate djikstra grid on a given obstacle grid
-    public static int[,] GenerateGrid(int numCols, int numRows, Tuple<int, int> b1, Dictionary<Tuple<int, int>, int> obstacleGrid, Tuple<int, int> destination)
+    public int[,] GenerateGrid(int col, int row, Vector2Int b1, Dictionary<Vector2Int, int> obstacleGrid, Vector2Int destination)
     {
-        int rOff = b1.Item2;
-        int cOff = b1.Item1;
+        int rOff = b1.r;
+        int cOff = b1.c;
 
-        Tuple<int, int> dest = new Tuple<int, int>(destination.Item1 - rOff, destination.Item2 - cOff);
-
-        ROW = numRows;
-        COL = numCols;
+        Vector2Int dest = new(destination.c - rOff, destination.r - cOff, row);
 
         int i;
         int j;
 
-        int[,] dijkstraGrid = new int[ROW, COL]; //give the djikstra grid blocked spaces
+        // int[,] dijkstraGridArr = new int[row, col]; //give the djikstra grid blocked spaces
+        Array.Clear(dijkstraGridArr, 0, dijkstraGridArr.Length);
 
-        foreach (KeyValuePair<Tuple<int, int>, int> pair in obstacleGrid)
+        foreach (KeyValuePair<Vector2Int, int> pair in obstacleGrid)
         {
-            int r = pair.Key.Item1;
-            int c = pair.Key.Item2;
-            if (r - rOff < ROW && c - cOff < COL)
+            int r = pair.Key.c;
+            int c = pair.Key.r;
+            if (r - rOff < row && c - cOff < col)
             {
-                dijkstraGrid[r - rOff, c - cOff] = pair.Value;
+                dijkstraGridArr[r - rOff, c - cOff] = pair.Value;
             }
         }
 
         //check if the destination is out of range
-        if (isValid(dest.Item1, dest.Item2) == false)
+        if (IsValid(dest.c, dest.r) == false)
         {
-            Debug.Log("Dijkstra destination is invalid");
+            LogWrapper.Log("Dijkstra destination is invalid");
             return null;
         }
 
         //Destination is blocked
-        if (isUnBlocked(dijkstraGrid, dest.Item1, dest.Item2) == false)
+        if (IsUnBlocked(dijkstraGridArr, dest.c, dest.r) == false)
         {
-            Debug.Log("Dijkstra destination is blocked");
-            Debug.Log("Finding a new destination...");
+            LogWrapper.Log("Dijkstra destination is blocked");
+            LogWrapper.Log("Finding a new destination...");
 
-            dest = FindNearestUnblocked(dijkstraGrid, dest, COL, ROW);
+            dest = FindNearestUnblocked(dijkstraGridArr, dest, col, row);
 
-            if (isValid(dest.Item1, dest.Item2) && isUnBlocked(dijkstraGrid, dest.Item1, dest.Item2))
+            if (IsValid(dest.c, dest.r) && IsUnBlocked(dijkstraGridArr, dest.c, dest.r))
             {
-                Debug.Log("New destination found!");
+                LogWrapper.Log("New destination found!");
             }
             else
             {
-                Debug.Log("No new destination could be found");
+                LogWrapper.Log("No new destination could be found");
                 return null;
             }
         }
@@ -109,12 +103,11 @@ public class DijkstraGrid
         //FLOOD FILL FROM THE END POINT
 
         //declare a 2D array of cell structures to hold the details of that cell
-        var cellDetails = new cell[ROW, COL];
 
         //initialize with default values for cellDetails
-        for (i = 0; i < ROW; i++)
+        for (i = 0; i < row; i++)
         {
-            for (j = 0; j < COL; j++)
+            for (j = 0; j < col; j++)
             {
                 cellDetails[i, j].parent_i = -1;
                 cellDetails[i, j].parent_j = -1;
@@ -125,77 +118,78 @@ public class DijkstraGrid
         }
 
         //initialize destination cell
-        cellDetails[dest.Item1, dest.Item2].distance = 0;
+        cellDetails[dest.c, dest.r].distance = 0;
 
-        Queue<cell> toVisit = new Queue<cell>(); //FIFO STRUCTURE
-
-        i = dest.Item1; //row
-        j = dest.Item2; //col
+        i = dest.c; //row
+        j = dest.r; //col
 
         //SET PARENTS AND ADD Item1 FOUR NEIGHBOURS TO QUEUE
+        toVisit.Clear();
         //WORKING
-        if (j + 1 < COL) //check for within bounds
+        if (j + 1 < col) //check for within bounds
         {
 
-            cellDetails[dest.Item1, dest.Item2 + 1].parent_i = i;
-            cellDetails[dest.Item1, dest.Item2 + 1].parent_j = j;
-            toVisit.Enqueue(cellDetails[dest.Item1, dest.Item2 + 1]); //right
-
+            cellDetails[dest.c, dest.r + 1].parent_i = i;
+            cellDetails[dest.c, dest.r + 1].parent_j = j;
+            toVisit.Enqueue(cellDetails[dest.c, dest.r + 1]); //right
         }
 
         if (i > 0)
         {
 
-            cellDetails[dest.Item1 - 1, dest.Item2].parent_i = i;
-            cellDetails[dest.Item1 - 1, dest.Item2].parent_j = j;
-            toVisit.Enqueue(cellDetails[dest.Item1 - 1, dest.Item2]); //down\
-
+            cellDetails[dest.c - 1, dest.r].parent_i = i;
+            cellDetails[dest.c - 1, dest.r].parent_j = j;
+            toVisit.Enqueue(cellDetails[dest.c - 1, dest.r]); //down\
         }
 
         if (j > 0)
         {
-
-            cellDetails[dest.Item1, dest.Item2 - 1].parent_i = i;
-            cellDetails[dest.Item1, dest.Item2 - 1].parent_j = j;
-            toVisit.Enqueue(cellDetails[dest.Item1, dest.Item2 - 1]); //left
-
+            cellDetails[dest.c, dest.r - 1].parent_i = i;
+            cellDetails[dest.c, dest.r - 1].parent_j = j;
+            toVisit.Enqueue(cellDetails[dest.c, dest.r - 1]); //left
         }
 
-        if (i + 1 < ROW)
+        if (i + 1 < row)
         {
-
-            cellDetails[dest.Item1 + 1, dest.Item2].parent_i = i;
-            cellDetails[dest.Item1 + 1, dest.Item2].parent_j = j;
-            toVisit.Enqueue(cellDetails[dest.Item1 + 1, dest.Item2]); //up
-
+            cellDetails[dest.c + 1, dest.r].parent_i = i;
+            cellDetails[dest.c + 1, dest.r].parent_j = j;
+            toVisit.Enqueue(cellDetails[dest.c + 1, dest.r]); //up
         }
 
         while (toVisit.Count > 0)
         {
-            cell tempCell = toVisit.Dequeue(); //pull cell of the QUEUE
+            Cell tempCell = toVisit.Dequeue(); //pull cell of the QUEUE
 
             //check if the destination is out of range
-            if (isValid(tempCell.row, tempCell.col))
+            if (IsValid(tempCell.row, tempCell.col))
             {
                 if (cellDetails[tempCell.row, tempCell.col].distance == -1)
                 {
 
                     //Check if destination is blocked
-                    if (isUnBlocked(dijkstraGrid, tempCell.row, tempCell.col))
+                    if (IsUnBlocked(dijkstraGridArr, tempCell.row, tempCell.col))
                     {
                         //grab the parent's indices
                         int parent_i = cellDetails[tempCell.row, tempCell.col].parent_i;
                         int parent_j = cellDetails[tempCell.row, tempCell.col].parent_j;
 
                         //calculate distance from parents
-                        cellDetails[tempCell.row, tempCell.col].distance = cellDetails[parent_i, parent_j].distance + 1;
+                        try
+                        {
+                            cellDetails[tempCell.row, tempCell.col].distance = cellDetails[parent_i, parent_j].distance + 1;
+                        }
+                        catch (IndexOutOfRangeException e)
+                        {
+                            cellDetails[tempCell.row, tempCell.col].distance = cellDetails[parent_i, parent_j].distance + 1;
+                            LogWrapper.Log(e.Message);
+                        }
 
                         //change to the indices of the currently selected cell
                         i = tempCell.row;
                         j = tempCell.col;
 
 
-                        if (j + 1 < COL) //check for within bounds
+                        if (j + 1 < col) //check for within bounds
                         {
                             //check if it has been unvisited (parent set to -1,-1)
                             if ((cellDetails[i, j + 1].parent_i == -1) && (cellDetails[i, j + 1].parent_j == -1))
@@ -226,7 +220,7 @@ public class DijkstraGrid
                             }
                         }
 
-                        if (i + 1 < ROW)
+                        if (i + 1 < row)
                         {
                             if ((cellDetails[i + 1, j].parent_i == -1) && (cellDetails[i + 1, j].parent_j == -1))
                             {
@@ -240,39 +234,43 @@ public class DijkstraGrid
                     else
                     {
                         //calculate distance from parents
-                        cellDetails[tempCell.row, tempCell.col].distance = Int32.MaxValue;
+                        cellDetails[tempCell.row, tempCell.col].distance = int.MaxValue;
                     }
                 }//end if uninitialized
             }//end if isValid
         }//end while
 
         //transfer distance values to the Dijkstra grid
-        for (i = 0; i < ROW; i++)
+        for (i = 0; i < row; i++)
         {
             //String s = "";
-            for (j = 0; j < COL; j++)
+            for (j = 0; j < col; j++)
             {
-                if (dijkstraGrid[i, j] != Int32.MaxValue)
+                if (dijkstraGridArr[i, j] != int.MaxValue)
                 {
-                    dijkstraGrid[i, j] = cellDetails[i, j].distance;
+                    dijkstraGridArr[i, j] = cellDetails[i, j].distance;
                 }
             }
         }
 
-        return dijkstraGrid;
+        return dijkstraGridArr;
 
     }
 
     //PERFORM BREADTH-FIRST SEARCH TO FIND NEAREST UNBLOCKED CELL
-    public static Tuple<int, int> FindNearestUnblocked(int[,] obstacleGrid, Tuple<int, int> dest, int rowLength, int colLength)
-    {
-        int dest_i = dest.Item1;
-        int dest_j = dest.Item2;
 
-        if (obstacleGrid[dest_i, dest_j] == Int32.MaxValue)
+    public Vector2Int FindNearestUnblocked(int[,] obstacleGrid, Vector2Int dest, int rowLength, int colLength)
+    {
+        int dest_i = dest.c;
+        int dest_j = dest.r;
+
+        if (obstacleGrid[dest_i, dest_j] == int.MaxValue)
         {
             //declare a 2D array of cell structures to hold the details of that cell
-            var cellDetails = new cell[rowLength, colLength];
+            if (cellDetails == null || cellDetails.GetLength(0) != rowLength || cellDetails.GetLength(1) != colLength)
+            {
+                cellDetails = new Cell[rowLength, colLength];
+            }
             int i;
             int j;
 
@@ -289,44 +287,42 @@ public class DijkstraGrid
                 }
             }
 
-            i = 0;
-            j = 0;
-
-            Queue<cell> toVisit = new Queue<cell>(); //FIFO STRUCTURE
+            //FIFO STRUCTURE
+            toVisit.Clear();
 
             //SET PARENTS AND ADD FIRST FOUR NEIGHBOURS TO QUEUE
             //WORKING
             if (dest_j + 1 < rowLength) //check for within bounds
             {
-                cellDetails[dest.Item1, dest.Item2 + 1].parent_i = dest_i;
-                cellDetails[dest.Item1, dest.Item2 + 1].parent_j = dest_j;
-                toVisit.Enqueue(cellDetails[dest.Item1, dest.Item2 + 1]); //right
+                cellDetails[dest.c, dest.r + 1].parent_i = dest_i;
+                cellDetails[dest.c, dest.r + 1].parent_j = dest_j;
+                toVisit.Enqueue(cellDetails[dest.c, dest.r + 1]); //right
             }
 
             if (dest_i > 0)
             {
-                cellDetails[dest.Item1 - 1, dest.Item2].parent_i = dest_i;
-                cellDetails[dest.Item1 - 1, dest.Item2].parent_j = dest_j;
-                toVisit.Enqueue(cellDetails[dest.Item1 - 1, dest.Item2]); //down
+                cellDetails[dest.c - 1, dest.r].parent_i = dest_i;
+                cellDetails[dest.c - 1, dest.r].parent_j = dest_j;
+                toVisit.Enqueue(cellDetails[dest.c - 1, dest.r]); //down
             }
 
             if (dest_j > 0)
             {
-                cellDetails[dest.Item1, dest.Item2 - 1].parent_i = dest_i;
-                cellDetails[dest.Item1, dest.Item2 - 1].parent_j = dest_j;
-                toVisit.Enqueue(cellDetails[dest.Item1, dest.Item2 - 1]); //left
+                cellDetails[dest.c, dest.r - 1].parent_i = dest_i;
+                cellDetails[dest.c, dest.r - 1].parent_j = dest_j;
+                toVisit.Enqueue(cellDetails[dest.c, dest.r - 1]); //left
             }
 
             if (dest_i + 1 < colLength)
             {
-                cellDetails[dest.Item1 + 1, dest.Item2].parent_i = dest_i;
-                cellDetails[dest.Item1 + 1, dest.Item2].parent_j = dest_j;
-                toVisit.Enqueue(cellDetails[dest.Item1 + 1, dest.Item2]); //up
+                cellDetails[dest.c + 1, dest.r].parent_i = dest_i;
+                cellDetails[dest.c + 1, dest.r].parent_j = dest_j;
+                toVisit.Enqueue(cellDetails[dest.c + 1, dest.r]); //up
             }
 
             while (toVisit.Count > 0)
             {
-                cell tempCell = toVisit.Dequeue(); //pull cell of the QUEUE
+                Cell tempCell = toVisit.Dequeue(); //pull cell of the QUEUE
 
                 if (cellDetails[tempCell.row, tempCell.col].distance == -1)
                 {
@@ -385,12 +381,12 @@ public class DijkstraGrid
                     else
                     {
                         //calculate distance from parents
-                        return new Tuple<int, int>(tempCell.row, tempCell.col);
+                        return new Vector2Int(tempCell.row, tempCell.col, row);
                     }
                 }//end if uninitialized
             }//end while
         }
 
-        return new Tuple<int, int>(dest_i, dest_j);
+        return new Vector2Int(dest_i, dest_j, row);
     }
 }

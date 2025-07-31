@@ -213,8 +213,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 243555256}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 17.01, y: 0, z: 21.22}
+  m_LocalScale: {x: 30, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -310,7 +310,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 500994586}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 8.64, y: 0, z: 9.64}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -524,18 +524,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97dac937c42373f4e9e051a4e1943056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dynamicObstacles: 0
+  dynamicObstacles: 1
   cellSize: 1
   b1: {x: 0, y: 0, z: 0}
-  b2: {x: 100, y: 100, z: 100}
+  b2: {x: 100, y: 0, z: 100}
   obstacleLayer: 0
   player: {fileID: 500994586}
-  showObstacles: 0
-  showDijkstra: 0
-  showVectors: 0
+  showObstacles: 1
+  showDijkstra: 1
+  showVectors: 1
   refreshRate: 0
-  cellsPerFrame: 0
-  obstacleChecksPerFrame: 0
 --- !u!4 &2052225970
 Transform:
   m_ObjectHideFlags: 0

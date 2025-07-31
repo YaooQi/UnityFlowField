@@ -8,8 +8,23 @@ using UnityEngine;
 /// MAXINT - impassable space
 public class ObstacleGrid
 {
+    private readonly Dictionary<Vector2Int, int> dict;
+    private readonly int col;
+    private readonly int row;
+    private readonly CustomGrid cg;
+    private Vector2Int bl; // bottom left corner of the grid
+    private readonly RaycastHit[] hitResult = new RaycastHit[1];
 
-    public static Tuple<Vector3, Vector3> getBounds(Vector3 bounds1, Vector3 bounds2)
+    public ObstacleGrid(int col, int row, CustomGrid cg, Vector2Int bl)
+    {
+        this.col = col;
+        this.row = row;
+        this.cg = cg;
+        this.bl = bl;
+        dict = new Dictionary<Vector2Int, int>(row * col);
+    }
+
+    public static ValueTuple<Vector3, Vector3> GetBounds(Vector3 bounds1, Vector3 bounds2)
     {
 
         Vector3 bottomLeft = Vector2.zero;
@@ -38,61 +53,42 @@ public class ObstacleGrid
             topRight.z = bounds1.z;
         }
 
-        return new Tuple<Vector3, Vector3>(bottomLeft, topRight);
+        return new ValueTuple<Vector3, Vector3>(bottomLeft, topRight);
     }
 
     //This function will generate a 2D array of either NULL or MAXINT depending on whether there are
     //obstacles in the way or not.
-    public static Dictionary<Tuple<int, int>, int> GenerateBlockedDictionary(CustomGrid cg, Vector3 bounds1, Vector3 bounds2, int obstacleMask)
+
+    public Dictionary<Vector2Int, int> GenerateBlockedDictionary(int obstacleMask)
     {
+        var cellSize = cg.cellSize;
+        var radius = cellSize * 0.5f; //radius of capsulecast
+        var offset = 0.5f * cellSize * (Vector3.right + Vector3.forward) + (1000.0f * Vector3.up);
 
-        float cellSize = cg.cellSize;
+        var offsetRow = (int)offset.z;
+        var offsetCol = (int)offset.x;
 
-        RaycastHit hit; //raycast return variable
-        GameObject go;	//keeping track of current game object
-
-        // TODO: get rid of this magic number
-        float radius = cellSize / 2; //radius of capsulecast
-
-        Vector3 offset = (Vector3.right * 0.5f * cellSize) + (Vector3.forward * 0.5f * cellSize);
-
-        Tuple<Vector3, Vector3> newBounds = getBounds(bounds1, bounds2);
-        Vector3 bottomLeft = newBounds.Item1;
-        Vector3 topRight = newBounds.Item2;
-
-        // bounds in grid coordinates
-        Tuple<int, int> b1 = cg.worldToCell(bottomLeft);
-        Tuple<int, int> b2 = cg.worldToCell(topRight);
-
-        int numCols = b2.Item1 - b1.Item1; // x length
-        int numRows = b2.Item2 - b1.Item2; // z length
-
-        Dictionary<Tuple<int, int>, int> obstacleGrid = new Dictionary<Tuple<int, int>, int>(); //create an empty grid to load obstacle values into
-
+        dict.Clear();
         // every column is X direction
-        for (int col = b1.Item1; col < numCols; col++)
+
+        for (int c = bl.c; c < col; c++)
         {
             // every row is Z direction
-            for (int row = b1.Item2; row < numRows; row++)
+            for (int r = bl.r; r < row; r++)
             {
-
-                //create a new ray from 100 units up pointing down towards the map
-                Ray ray = new Ray(cg.cellToWorld(row, col) + offset + (1000.0f * Vector3.up), Vector3.down);
-
-                Vector3 origin = cg.cellToWorld(row, col) + offset + (1000.0f * Vector3.up);
+                // reduce CPU consumption of function calls
+                // Vector3 origin = cg.CellToWorld(r, c) + offset;
+                var origin = new Vector3(r * cellSize + offsetRow, 0, c * cellSize + offsetCol);
+                // var origin = new Vector3(c * cellSize + offsetCol, 0, r * cellSize + offsetRow);
 
                 //check for obstacle
-                if (Physics.SphereCast(origin, radius, Vector3.down, out hit, 50000.0f, (1 << obstacleMask)))
+                if (Physics.SphereCastNonAlloc(origin, radius, Vector3.down, hitResult, 50000.0f, 1 << obstacleMask) > 0)
                 {
-                    //return the GameObject we hit
-                    go = hit.transform.gameObject;
-                    obstacleGrid[new Tuple<int, int>(row, col)] = Int32.MaxValue; //Max value represents impassable object
+                    dict[new Vector2Int(r, c, row)] = int.MaxValue; //Max value represents impassable object
                 }
             }
         }
 
-        return obstacleGrid;
-
+        return dict;
     }
-
 }
